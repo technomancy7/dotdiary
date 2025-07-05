@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "dayjs": "^1.11.13",
+    "yargs-parser": "^22.0.0"
+  },
+  "scripts": {
+    "b": "bun build diary.js --compile && mv diary $HOME/.local/bin/diary"
+  }
+}
