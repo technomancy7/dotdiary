@@ -27,7 +27,8 @@ The top of the diary text file can contain settings values.
 ```
 <br>
 A complete diary entry;
-```txt
+
+```
 .diary 05-07-2025
 I wrote this readme!
 @coding
