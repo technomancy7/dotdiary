@@ -33,6 +33,10 @@ export class Diary {
         this.settings = {}
     }
 
+    dateFormat() {
+        return this.settings.dateFormat || "DD-MM-YYYY";
+    }
+
     resetState() {
         this.state = {};
         this.settings = {};
@@ -44,8 +48,8 @@ export class Diary {
 
         // Step 2: Sort the array based on parsed dates
         entries.sort((a, b) => {
-            const dateA = dayjs(a[0], 'DD-MM-YYYY');
-            const dateB = dayjs(b[0], 'DD-MM-YYYY');
+            const dateA = dayjs(a[0], this.dateFormat());
+            const dateB = dayjs(b[0], this.dateFormat());
             if(!reverse) return dateA - dateB; // Sort from earliest to latest
             if(reverse) return dateB - dateA // latest to earliest
         });
@@ -53,6 +57,7 @@ export class Diary {
         // Step 3: Reconstruct the sorted object (optional)
         this.state = Object.fromEntries(entries);
     }
+
     async editFile(entryFile = false) {
         let editor = this.settings.editor || Bun.env.EDITOR || null
         if(editor != null) {
@@ -139,7 +144,7 @@ export class Diary {
         }
         text.push("")
 
-        if(this.state[onlyDate] == undefined && onlyDate != null) text.push(`.diary ${onlyDate}`)
+        if(this.state[onlyDate] == undefined && onlyDate != null) text.push(`.diary ${onlyDate}\n`)
 
         for(let [key, diaryEntry] of Object.entries(this.state)) {
             if(onlyDate && key != onlyDate) continue;
@@ -169,9 +174,22 @@ if(import.meta.main) {
     await diary.loadFile();
     const args = argParser(process.argv.slice(2));
     let entry = null
-    let date = args.d || dayjs().format('DD-MM-YYYY')
-
+    let date = args.d || args.date || dayjs().format(diary.dateFormat())
+    if(date == "yesterday") date = dayjs().subtract(1, "day").format(diary.dateFormat())
+    if(args.daysAgo) date = dayjs().subtract(parseInt(args.daysAgo), "day").format(diary.dateFormat())
+    if(args.weeksAgo) date = dayjs().subtract(parseInt(args.weeksAgo), "week").format(diary.dateFormat())
     switch (args._[0]) {
+        case "help":
+            console.log("write")
+            console.log("append")
+            console.log("delete")
+            console.log("sort")
+            console.log("show")
+            console.log("set <key> <value>")
+            console.log("edit")
+            console.log("Date Selection: --date <DD-MM-YY> --days-ago <number> --weeks-ago <number>")
+            break;
+
         case "print":
             console.log(diary.state)
 
