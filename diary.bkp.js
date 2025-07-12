@@ -71,7 +71,6 @@ export class Diary {
         }
 
     }
-
     async loadFile(path = undefined) {
         if(path == undefined) path = this.diaryFile;
         const i = Bun.file(path);
@@ -85,13 +84,17 @@ export class Diary {
                 if(line == "") continue;
 
                 if(line == ".settings") { // Enter settings block
+                    //console.log("Defined settings...")
                     inSettings = true;
 
                 } else if(line.startsWith(".diary ")) { //Create new entry
                     inSettings = false;
                     if(currentEntry != null) { //Commit current in-progress entry and reset
+                        //console.log(`Saving entry ${currentEntry.date}...`)
                         this.state[currentEntry.date] = currentEntry;
                         currentEntry = null;
+
+                        //console.log(this.state)
                     }
 
                     currentEntry = {
@@ -99,11 +102,18 @@ export class Diary {
                         properties: {},
                         date: line.split(" ")[1]
                     }
-
+                    //console.log(`New entry ${currentEntry.date}...`)
                 } else if(line.startsWith("@")) {
                     let key = line.split(" ")[0].slice(1)
                     let val = line.split(" ").slice(1).join(" ")
-
+                    if(val == "") val = true;
+                    else if(val == "false") val = false;
+                    else if(key.includes(":")) {
+                        const nuType = key.split(":")[1]
+                        key = key.split(":")[0]
+                        if(nuType == "int") val = parseInt(val)
+                        if(nuType == "list") val = val.split("|")
+                    }
                     if(inSettings == true) {
                         this.settings[key] = val
                     } else {
@@ -114,23 +124,8 @@ export class Diary {
                     currentEntry.lines.push(line)
                 }
             }
-            this.state[currentEntry.date] = currentEntry;
+            this.state[currentEntry.date] = currentEntry; //Saving final entry
         }
-    }
-
-    formatDiaryEntry(diaryEntry) {
-        let text = [];
-
-        text.push(`.diary ${diaryEntry.date}`.trim())
-
-        for(let line of diaryEntry.lines) {
-            text.push(line.trim())
-        }
-
-        for(let [key, val] of Object.entries(diaryEntry.properties)) {
-            text.push(`@${key} ${val}`.trim())
-        }
-        return text
     }
 
     async exportFile(path = null, onlyDate = null) {
@@ -140,7 +135,11 @@ export class Diary {
         if(!onlyDate && Object.keys(this.settings).length > 0){
             text.push(".settings")
             for(let [key, val] of Object.entries(this.settings)) {
-                text.push(`@${key} ${val}`.trim())
+                if(typeof val == "string") text.push(`@${key} ${val}`.trim())
+                if(typeof val == "number") text.push(`@${key}:int ${val}`.trim())
+                if(typeof val == "boolean" && val == true) text.push(`@${key}`.trim())
+                if(typeof val == "boolean" && val == false) text.push(`@${key} false`.trim())
+                if(typeof val == "object" && Array.isArray(val)) text.push(`@${key}:list ${val.join("|")}`.trim())
             }
         }
         text.push("")
@@ -156,7 +155,11 @@ export class Diary {
             }
 
             for(let [key, val] of Object.entries(diaryEntry.properties)) {
-                text.push(`@${key} ${val}`.trim())
+                if(typeof val == "string") text.push(`@${key} ${val}`.trim())
+                if(typeof val == "number") text.push(`@${key}:int ${val}`.trim())
+                if(typeof val == "boolean" && val == true) text.push(`@${key}`.trim())
+                if(typeof val == "boolean" && val == false) text.push(`@${key} false`.trim())
+                if(typeof val == "object" && Array.isArray(val)) text.push(`@${key}:list ${val.join("|")}`.trim())
             }
             text.push("")
         }
@@ -173,10 +176,8 @@ if(import.meta.main) {
     let entry = null
     let date = args.d || args.date || dayjs().format(diary.dateFormat())
     if(date == "yesterday") date = dayjs().subtract(1, "day").format(diary.dateFormat())
-    if(args.yesterday) date = dayjs().subtract(1, "day").format(diary.dateFormat())
     if(args.daysAgo) date = dayjs().subtract(parseInt(args.daysAgo), "day").format(diary.dateFormat())
     if(args.weeksAgo) date = dayjs().subtract(parseInt(args.weeksAgo), "week").format(diary.dateFormat())
-
     switch (args._[0]) {
         case "help":
             console.log("write")
@@ -184,7 +185,6 @@ if(import.meta.main) {
             console.log("delete")
             console.log("sort")
             console.log("show")
-            console.log("ls")
             console.log("set <key> <value>")
             console.log("edit")
             console.log("Date Selection: --date <DD-MM-YY> --days-ago <number> --weeks-ago <number>")
@@ -192,7 +192,7 @@ if(import.meta.main) {
 
         case "print":
             console.log(diary.state)
-            console.log(diary.settings)
+
             break;
 
         case "sort":
@@ -205,35 +205,32 @@ if(import.meta.main) {
             if(entry == undefined){
                 console.log("No entry for this date.")
             } else {
-                console.log(diary.formatDiaryEntry(entry).join("\n"))
+                console.log(entry)
             }
-            break;
-
-        case "ls":
-
-
             break;
 
         case "set":
             let key = args._[1]
             let val = args._.slice(2).join(" ")
 
-            if(args.g) {
-                diary.settings[key] = val;
-            } else {
-                entry = diary.state[date];
-
-                if(entry == undefined) {
-                    entry = {
-                        lines: [],
-                        date: date,
-                        properties: {}
-                    }
-                }
-                entry.properties[key] = val
-                diary.state[date] = entry
+            if(key.includes(":")) {
+                const nuType = key.split(":")[1]
+                key = key.split(":")[0]
+                if(nuType == "int") val = parseInt(val)
+                if(nuType == "list") val = val.split("|")
             }
 
+            entry = diary.state[date];
+
+            if(entry == undefined) {
+                entry = {
+                    lines: [],
+                    date: date,
+                    properties: {}
+                }
+            }
+            entry.properties[key] = val
+            diary.state[date] = entry
             await diary.exportFile()
 
             break;

@@ -10,6 +10,8 @@ diary print #shows all entries
 diary append "This is a new line!" #Adds text to entry, again, today by default, -d for different date.
 diary set editor vim #Changes setting
 diary edit #Edits entire diary file in text
+
+# Select the date easier with --days-ago <num> and --weeks-ago <num>
 ```
 
 ## Build
